@@ -7,6 +7,8 @@ package store
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -22,6 +24,7 @@ type Store struct {
 	pool    *pgxpool.Pool
 	rdb     *redis.Client
 	queries *db.Queries
+	http    *http.Client
 }
 
 // New connects to Postgres and Redis and returns a ready Store. The caller is
@@ -53,6 +56,7 @@ func New(ctx context.Context, cfg *config.Config) (*Store, error) {
 		pool:    pool,
 		rdb:     rdb,
 		queries: db.New(pool),
+		http:    &http.Client{Timeout: 5 * time.Second},
 	}, nil
 }
 

@@ -11,11 +11,24 @@ import (
 )
 
 type Querier interface {
+	// Total active links for a user, honoring the same optional search filter as the
+	// list query so pagination totals stay consistent.
+	CountLinksByUserID(ctx context.Context, arg CountLinksByUserIDParams) (int64, error)
 	CreateLink(ctx context.Context, arg CreateLinkParams) (CreateLinkRow, error)
 	// Active (non-deleted) link by slug. Used by the redirect hot path.
 	GetLinkBySlug(ctx context.Context, slug string) (GetLinkBySlugRow, error)
-	// Paginated list of a user's active links, newest first.
+	// A user's single active link by slug. Used for detail, update, and delete so
+	// ownership is enforced in the query itself.
+	GetLinkBySlugAndUser(ctx context.Context, arg GetLinkBySlugAndUserParams) (GetLinkBySlugAndUserRow, error)
+	// Paginated list of a user's active links. An optional case-insensitive search
+	// (sqlc.narg('search')) filters by slug or destination URL. Sorting is driven by
+	// two boolean flags so the four (column × direction) combinations resolve in SQL
+	// without dynamic string building: sort_expires picks expires_at over created_at,
+	// and sort_asc picks ascending over descending.
 	GetLinksByUserID(ctx context.Context, arg GetLinksByUserIDParams) ([]GetLinksByUserIDRow, error)
+	// Reports whether an active link already uses this slug. Used by slug generation
+	// (collision retry) and custom-alias validation.
+	SlugExists(ctx context.Context, slug string) (bool, error)
 	SoftDeleteLink(ctx context.Context, id pgtype.UUID) error
 	// Updates mutable fields of an active link. NULL arguments leave a field unchanged
 	// (handled via COALESCE) except expires_at, which is set verbatim so it can be cleared.
