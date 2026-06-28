@@ -12,14 +12,14 @@ export const REFRESH_COOKIE = "shrt_refresh"
 const REFRESH_MAX_AGE = 60 * 60 * 24 * 30
 
 /**
- * Base URL of the Go backend. Prefers the server-only API_URL and falls back to
- * the public one so a single var works in local dev.
+ * Base URL of the Go backend, used by the server-side auth route handlers.
+ * Prefers the server-only API_URL, then the public one, and finally the local
+ * dev default — so the app runs locally without any env file, while production
+ * can point these routes at an internal backend address.
  */
 export function backendURL(): string {
-  const url = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL
-  if (!url) {
-    throw new Error("API_URL / NEXT_PUBLIC_API_URL is not set")
-  }
+  const url =
+    process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
   return url.replace(/\/$/, "")
 }
 
