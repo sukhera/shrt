@@ -11,6 +11,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countLinksByUserID = `-- name: CountLinksByUserID :one
+SELECT COUNT(*)
+FROM links
+WHERE user_id = $1
+  AND deleted_at IS NULL
+  AND (
+    $2::text IS NULL
+    OR slug ILIKE '%' || $2 || '%'
+    OR original_url ILIKE '%' || $2 || '%'
+  )
+`
+
+type CountLinksByUserIDParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	Search pgtype.Text `json:"search"`
+}
+
+// Total active links for a user, honoring the same optional search filter as the
+// list query so pagination totals stay consistent.
+func (q *Queries) CountLinksByUserID(ctx context.Context, arg CountLinksByUserIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countLinksByUserID, arg.UserID, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createLink = `-- name: CreateLink :one
 INSERT INTO links (user_id, slug, original_url, is_custom, expires_at)
 VALUES ($1, $2, $3, $4, $5)
@@ -92,18 +118,71 @@ func (q *Queries) GetLinkBySlug(ctx context.Context, slug string) (GetLinkBySlug
 	return i, err
 }
 
+const getLinkBySlugAndUser = `-- name: GetLinkBySlugAndUser :one
+SELECT id, user_id, slug, original_url, is_custom, expires_at, created_at, updated_at
+FROM links
+WHERE slug = $1 AND user_id = $2 AND deleted_at IS NULL
+`
+
+type GetLinkBySlugAndUserParams struct {
+	Slug   string      `json:"slug"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+type GetLinkBySlugAndUserRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	Slug        string             `json:"slug"`
+	OriginalUrl string             `json:"original_url"`
+	IsCustom    bool               `json:"is_custom"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+// A user's single active link by slug. Used for detail, update, and delete so
+// ownership is enforced in the query itself.
+func (q *Queries) GetLinkBySlugAndUser(ctx context.Context, arg GetLinkBySlugAndUserParams) (GetLinkBySlugAndUserRow, error) {
+	row := q.db.QueryRow(ctx, getLinkBySlugAndUser, arg.Slug, arg.UserID)
+	var i GetLinkBySlugAndUserRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Slug,
+		&i.OriginalUrl,
+		&i.IsCustom,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getLinksByUserID = `-- name: GetLinksByUserID :many
 SELECT id, user_id, slug, original_url, is_custom, expires_at, created_at, updated_at
 FROM links
-WHERE user_id = $1 AND deleted_at IS NULL
-ORDER BY created_at DESC
-LIMIT $2 OFFSET $3
+WHERE user_id = $1
+  AND deleted_at IS NULL
+  AND (
+    $2::text IS NULL
+    OR slug ILIKE '%' || $2 || '%'
+    OR original_url ILIKE '%' || $2 || '%'
+  )
+ORDER BY
+  CASE WHEN $3::bool AND $4::bool THEN expires_at END ASC NULLS LAST,
+  CASE WHEN $3::bool AND NOT $4::bool THEN expires_at END DESC NULLS LAST,
+  CASE WHEN NOT $3::bool AND $4::bool THEN created_at END ASC,
+  CASE WHEN NOT $3::bool AND NOT $4::bool THEN created_at END DESC
+LIMIT $6 OFFSET $5
 `
 
 type GetLinksByUserIDParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	Limit  int32       `json:"limit"`
-	Offset int32       `json:"offset"`
+	UserID       pgtype.UUID `json:"user_id"`
+	Search       pgtype.Text `json:"search"`
+	SortExpires  bool        `json:"sort_expires"`
+	SortAsc      bool        `json:"sort_asc"`
+	ResultOffset int32       `json:"result_offset"`
+	ResultLimit  int32       `json:"result_limit"`
 }
 
 type GetLinksByUserIDRow struct {
@@ -117,9 +196,20 @@ type GetLinksByUserIDRow struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
-// Paginated list of a user's active links, newest first.
+// Paginated list of a user's active links. An optional case-insensitive search
+// (sqlc.narg('search')) filters by slug or destination URL. Sorting is driven by
+// two boolean flags so the four (column × direction) combinations resolve in SQL
+// without dynamic string building: sort_expires picks expires_at over created_at,
+// and sort_asc picks ascending over descending.
 func (q *Queries) GetLinksByUserID(ctx context.Context, arg GetLinksByUserIDParams) ([]GetLinksByUserIDRow, error) {
-	rows, err := q.db.Query(ctx, getLinksByUserID, arg.UserID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getLinksByUserID,
+		arg.UserID,
+		arg.Search,
+		arg.SortExpires,
+		arg.SortAsc,
+		arg.ResultOffset,
+		arg.ResultLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +235,21 @@ func (q *Queries) GetLinksByUserID(ctx context.Context, arg GetLinksByUserIDPara
 		return nil, err
 	}
 	return items, nil
+}
+
+const slugExists = `-- name: SlugExists :one
+SELECT EXISTS (
+  SELECT 1 FROM links WHERE slug = $1 AND deleted_at IS NULL
+)
+`
+
+// Reports whether an active link already uses this slug. Used by slug generation
+// (collision retry) and custom-alias validation.
+func (q *Queries) SlugExists(ctx context.Context, slug string) (bool, error) {
+	row := q.db.QueryRow(ctx, slugExists, slug)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const softDeleteLink = `-- name: SoftDeleteLink :exec

@@ -11,4 +11,20 @@ var (
 
 	// ErrExpired is returned when a link exists but its expires_at is in the past.
 	ErrExpired = errors.New("store: link expired")
+
+	// ErrAliasTaken is returned when a requested custom alias is already in use,
+	// or when random slug generation exhausts its retries (a near-impossible
+	// signal that the keyspace is saturated).
+	ErrAliasTaken = errors.New("store: alias already taken")
+
+	// ErrInvalidURL is returned when a submitted URL is malformed or uses an
+	// unsupported scheme.
+	ErrInvalidURL = errors.New("store: invalid url")
+
+	// ErrUnsafeURL is returned when a URL is flagged by Google Safe Browsing.
+	ErrUnsafeURL = errors.New("store: unsafe url")
+
+	// ErrForbidden is returned when a caller is authenticated but does not own
+	// the targeted resource.
+	ErrForbidden = errors.New("store: forbidden")
 )

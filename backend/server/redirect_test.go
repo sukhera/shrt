@@ -49,6 +49,9 @@ func newTestServer(t *testing.T) (*Server, *pgxpool.Pool) {
 		DatabaseURL:         pgURL,
 		RedisURL:            redisURL,
 		DefaultRedirectCode: 302,
+		SlugLength:          7,
+		RateLimitAnon:       1000, // generous by default; rate-limit tests lower it
+		RateLimitUser:       1000,
 	}
 
 	st, err := store.New(ctx, cfg)

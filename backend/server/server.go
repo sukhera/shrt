@@ -29,12 +29,30 @@ func New(cfg *config.Config, st *store.Store) *Server {
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	// RealIP trusts X-Forwarded-For / X-Real-IP, which are spoofable when the app
+	// is exposed directly. shrt is intended to run behind a trusted reverse proxy
+	// that sets these headers; the deployment guide documents that requirement.
+	r.Use(middleware.RealIP) //nolint:staticcheck // trusted-proxy deployment; see deployment notes
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(s.cors)
 
 	r.Get("/health", s.handleHealth)
+
+	// API routes. Auth middleware is added in M3; for now POST /links is
+	// anonymous-capable and the rest read a user ID that is not yet populated.
+	r.Route("/api/v1", func(api chi.Router) {
+		api.Route("/links", func(links chi.Router) {
+			links.With(s.rateLimitCreate).Post("/", s.handleCreateLink)
+			links.Get("/", s.handleListLinks)
+			links.Get("/{slug}", s.handleGetLink)
+			links.Patch("/{slug}", s.handleUpdateLink)
+			links.Delete("/{slug}", s.handleDeleteLink)
+		})
+	})
+
+	// Redirect is registered last: its catch-all /{slug} must not shadow the
+	// API or health routes above.
 	r.Get("/{slug}", s.handleRedirect)
 
 	s.http = &http.Server{
