@@ -60,10 +60,10 @@ Copy `.env.example` to `.env` and fill in values before running. The app panics 
 
 ## Git workflow
 
-- `main` — always deployable; direct pushes blocked; requires CI pass
+- `main` — always deployable; direct pushes blocked
 - `dev` — integration branch; PRs merge here first
 - Feature branches: `feat/slug-generation`, `fix/cache-invalidation`
-- Every PR must pass CI (lint + test + build) before merge
+- Before opening a PR, run the lint/test/build checks locally (see the CI sections in `backend/CLAUDE.md` and `frontend/CLAUDE.md`)
 
 Commit messages follow Conventional Commits:
 ```
@@ -75,8 +75,13 @@ test(links): integration test for expired link 410 response
 
 ## CI
 
-- `backend-ci.yml` — golangci-lint, go test ./..., go build
-- `frontend-ci.yml` — tsc --noEmit, next lint, next build
+GitHub Actions CI is temporarily removed (the repo's Actions are blocked by a
+billing issue). The workflows are recoverable from git history and should be
+restored once billing is resolved. Until then, run the checks locally before
+each PR:
+
+- Backend — `golangci-lint run ./...`, `go test -race ./...`, `go build ./cmd/shrt`
+- Frontend — `tsc --noEmit`, `eslint .`, `next build`
 
 Both must pass before any PR is merged.
 
