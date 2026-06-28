@@ -18,7 +18,7 @@
 ```
 shrt/
 ├── backend/        # Go API + redirect server (single binary)
-├── frontend/       # Next.js 14 App Router
+├── frontend/       # Next.js App Router
 ├── docker-compose.yml
 ├── Makefile
 ├── .env.example
@@ -54,7 +54,7 @@ Copy `.env.example` to `.env` and fill in values before running. The app panics 
 | Backend | Go 1.22+, chi router, sqlc, pgx/v5, go-redis/v9 |
 | Database | PostgreSQL 15+ |
 | Cache | Redis 7+ / Upstash |
-| Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui |
+| Frontend | Next.js (latest stable), TypeScript, Tailwind CSS, shadcn/ui |
 | Auth | JWT RS256 (access token 1h, refresh token 30d) |
 | CI | GitHub Actions |
 
