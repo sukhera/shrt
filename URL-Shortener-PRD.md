@@ -196,7 +196,7 @@ The application code talks to Redis via the standard `go-redis` client and is in
 
 ### 5.4 Frontend — Next.js on Vercel
 
-Next.js with the App Router gives server-side rendering for the home page (useful for link previews and SEO) and a React SPA for the dashboard. TypeScript throughout.
+Next.js with the App Router gives server-side rendering for the home page (useful for link previews and SEO) and a React SPA for the dashboard. TypeScript throughout. The project tracks the latest stable Next.js / React release.
 
 The author deploys to Vercel's free tier — git-push deploy, automatic preview URLs per pull request, custom domain support included. Self-hosters can deploy the Next.js app anywhere that supports Node.js (Docker, Render, Railway, etc.) or export it as a static site if they remove SSR-dependent features.
 
@@ -208,7 +208,7 @@ The author deploys to Vercel's free tier — git-push deploy, automatic preview 
 | Database queries | **sqlc** | Type-safe SQL, no ORM |
 | Database | **PostgreSQL 15+** | Relational integrity, partial indexes |
 | Cache | **Redis** / **Upstash** | Slug cache + rate limiting; same client code for both |
-| Frontend | **Next.js 14** (TypeScript) | SSR home page + SPA dashboard |
+| Frontend | **Next.js** (App Router, TypeScript) | SSR home page + SPA dashboard; track latest stable |
 | Frontend hosting | **Vercel** (author's instance) | Free tier, git-push deploys |
 | Auth | **JWT (RS256)** | Stateless; access + refresh token pattern |
 | DB migrations | **golang-migrate** | Version-controlled SQL migrations |
@@ -252,9 +252,9 @@ The frontend is a separate Next.js app hosted on Vercel. It communicates with th
 ```sql
 CREATE TABLE users (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email       TEXT UNIQUE NOT NULL,
-  password    TEXT NOT NULL,               -- bcrypt hash
-  role        TEXT NOT NULL DEFAULT 'user', -- 'user' | 'admin'
+  email         TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,             -- bcrypt hash
+  role          TEXT NOT NULL DEFAULT 'user', -- 'user' | 'admin'
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -265,7 +265,7 @@ CREATE TABLE users (
 ```sql
 CREATE TABLE links (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug         TEXT UNIQUE NOT NULL,
+  slug         TEXT NOT NULL,              -- uniqueness enforced by partial index below
   original_url TEXT NOT NULL,
   user_id      UUID REFERENCES users(id),  -- NULL = anonymous
   is_custom    BOOLEAN NOT NULL DEFAULT false,
