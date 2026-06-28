@@ -3,6 +3,7 @@ package server
 import (
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -31,6 +32,49 @@ func (s *Server) cors(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// requireAuth rejects requests without a valid bearer access token. On success
+// it attaches the authenticated user's ID to the request context.
+func (s *Server) requireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := s.authenticate(r)
+		if !ok {
+			respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required.")
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(withUserID(r.Context(), userID)))
+	})
+}
+
+// optionalAuth attaches the authenticated user's ID when a valid bearer token is
+// present, and otherwise lets the request proceed anonymously. A malformed or
+// expired token is treated as anonymous rather than rejected, so endpoints that
+// accept both (POST /links) stay usable. Used only on routes where auth is
+// optional.
+func (s *Server) optionalAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if userID, ok := s.authenticate(r); ok {
+			r = r.WithContext(withUserID(r.Context(), userID))
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// authenticate extracts and validates the bearer access token from the
+// Authorization header, returning the subject (user ID) and whether the token is
+// valid.
+func (s *Server) authenticate(r *http.Request) (string, bool) {
+	header := r.Header.Get("Authorization")
+	raw, ok := strings.CutPrefix(header, "Bearer ")
+	if !ok || raw == "" {
+		return "", false
+	}
+	claims, err := s.store.ParseAccessToken(raw)
+	if err != nil {
+		return "", false
+	}
+	return claims.Subject, claims.Subject != ""
 }
 
 // rateLimitCreate limits link-creation requests. Authenticated users are limited
