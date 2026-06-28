@@ -1,155 +1,150 @@
+<div align="center">
+
 # shrt
 
-A clean, self-hostable URL shortener. MIT licensed.
+**A clean, self-hostable URL shortener.**
 
-**Live instance:** coming soon  
-**Repository:** https://github.com/sukhera/shrt
+Shorten any URL in one click — no account required. Sign in to manage, edit,
+and track your links from a simple dashboard.
 
-## Stack
+[![License: MIT](https://img.shields.io/badge/License-MIT-violet.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-| Layer | Tech |
-|-------|------|
-| Backend | Go 1.25+, chi, sqlc, pgx/v5, go-redis/v9 |
-| Database | PostgreSQL 15 |
-| Cache | Redis 7 / Upstash |
-| Frontend | Next.js (latest stable), TypeScript, Tailwind, shadcn/ui |
-| Auth | JWT RS256 (access token 1h, refresh token 30d) |
+</div>
 
-## Features (v1)
-
-- Shorten any URL — no account required
-- Custom aliases and expiry dates for registered users
-- User dashboard to manage, edit, and delete links
-- Dark mode
-- Self-hostable with Docker Compose or any VPS
+---
 
 ## Screenshots
 
 | Home | Dashboard |
-|------|-----------|
+|:----:|:---------:|
 | ![Home page](docs/screenshots/home.png) | ![Dashboard](docs/screenshots/dashboard.png) |
 
-## Local development
+## Features
 
-### Prerequisites
+- **Instant shortening** — paste a URL and get a short link; no sign-up needed
+- **Custom aliases & expiry** — pick your own slug and an expiration date
+- **Dashboard** — search, sort, edit, and delete your links
+- **Fast redirects** — Redis cache-aside in front of Postgres
+- **Safe by default** — optional Google Safe Browsing checks, per-IP/user rate limiting
+- **Secure auth** — JWT (RS256) with httpOnly refresh-token cookies
+- **Dark mode** — system-aware, with a manual toggle
+- **Self-hostable** — a single Go binary plus a Next.js app; runs anywhere
 
-- Go 1.25+
-- Node 20+
-- Docker (for Postgres + Redis)
+## Tech stack
 
-### Setup
+| Layer | Technology |
+|-------|------------|
+| Backend | Go 1.25, [chi](https://github.com/go-chi/chi), [pgx](https://github.com/jackc/pgx), [sqlc](https://sqlc.dev), [go-redis](https://github.com/redis/go-redis) |
+| Database | PostgreSQL 15 |
+| Cache | Redis 7 |
+| Frontend | Next.js 16 (App Router), TypeScript, Tailwind CSS, [shadcn/ui](https://ui.shadcn.com) |
+| Auth | JWT RS256 — 1h access token, 30d refresh token |
+| Testing | `go test`, Playwright (E2E) |
+
+## Quick start
+
+**Prerequisites:** Go 1.25+, Node 20+, Docker, and `make`.
 
 ```bash
 # 1. Clone
 git clone https://github.com/sukhera/shrt.git
 cd shrt
 
-# 2. Environment
+# 2. Configure
 cp .env.example .env
-# Edit .env and fill in values
 
-# 3. Generate RSA key pair for JWT
+# 3. Generate the JWT signing keys
 mkdir -p backend/keys
 openssl genrsa -out backend/keys/private.pem 2048
 openssl rsa -in backend/keys/private.pem -pubout -out backend/keys/public.pem
 
-# 4. Install Go dev tools
+# 4. Install dev tools (air, sqlc, migrate, golangci-lint)
 make tools
 
-# 5. Start Postgres + Redis
+# 5. Start infrastructure, run migrations, and launch the app
 make docker-up
-
-# 6. Run migrations
 make migrate-up
-
-# 7. Start everything
 make dev
 ```
 
-- API: `http://localhost:8080`
-- Frontend: `http://localhost:3000`
-- Health check: `http://localhost:8080/health`
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| API | http://localhost:8080 |
+| Health | http://localhost:8080/health |
 
-`make dev` starts both the Go API (with hot reload via air) and Next.js together. Ctrl+C stops both. Use `make dev-api` or `make dev-web` to start them individually.
+`make dev` runs the API (hot-reload via [air](https://github.com/air-verse/air))
+and the frontend together; `Ctrl+C` stops both. Use `make dev-api` / `make dev-web`
+to run them separately.
 
-> `make dev` and `make dev-api` use [air](https://github.com/air-verse/air) for hot reload — `make tools` installs it. Without air, run the API directly:
+> **No air?** Run the API directly:
 > ```bash
 > cd backend && set -a && . ../.env && set +a && go run ./cmd/shrt
 > ```
 
-### Short URLs and `BASE_URL`
+> **Short-link domain.** Short URLs are built from `BASE_URL`. Locally this is the
+> API origin (`http://localhost:8080/<slug>`); in production set it to your public
+> short domain so links read as `https://your-domain/<slug>`.
 
-Generated short URLs are built from `BASE_URL`. In local dev this defaults to the
-API origin, so links render as `http://localhost:8080/<slug>`. In production, set
-`BASE_URL` to the public short domain (e.g. `https://shrt.example.com`) so links
-read correctly. The redirect server (`GET /<slug>`) must be reachable at that
-domain.
+## Architecture
+
+A single Go binary serves both the JSON API (`/api/v1/...`) and the redirect
+endpoint (`GET /<slug>`). Business logic lives in `store/` — there is no separate
+service layer; HTTP handlers only parse requests and write responses.
+
+```
+shrt/
+├── backend/
+│   ├── cmd/shrt/        # entry point
+│   ├── server/          # HTTP handlers, routing, middleware
+│   ├── store/           # business logic: DB, cache, slug gen, auth
+│   ├── internal/config/ # env loading (the only place os.Getenv is used)
+│   └── db/              # migrations + sqlc queries
+└── frontend/
+    ├── app/             # Next.js App Router pages + API routes
+    ├── components/      # ui/ (shadcn) and app/ (project components)
+    ├── hooks/ lib/      # TanStack Query hooks + typed API client
+    └── e2e/             # Playwright tests
+```
+
+Redirects use a Redis cache-aside: a slug lookup hits Redis first and falls back
+to Postgres on a miss, repopulating the cache. Cache failures never block a
+redirect. See [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md) for the full
+design and the API contract.
 
 ## Testing
 
 ```bash
-# Backend — unit + integration tests (needs Postgres + Redis running)
-make test                       # go test -race ./...
+# Backend — unit + integration (needs Postgres + Redis running)
+make test
 
-# Frontend — type-check and lint
-cd frontend
-npm run type-check              # tsc --noEmit
-npm run lint                    # eslint .
+# Frontend — type-check + lint
+cd frontend && npm run type-check && npm run lint
 
 # End-to-end (Playwright) — needs the full stack running (make dev)
 cd frontend
-npx playwright install chromium # first run only
-npm run e2e                     # headless
-npm run e2e:ui                  # interactive inspector
+npx playwright install chromium   # first run only
+npm run e2e                       # or: npm run e2e:ui
 ```
 
 The E2E suite covers the critical paths: anonymous shorten → copy → redirect;
 register → login → create → edit → delete; and the expired-link 410 response.
 
-## CI checks
+## Configuration
 
-Run these locally before opening a PR (both must pass):
-
-```bash
-# Backend
-cd backend && go vet ./... && golangci-lint run ./... && go test -race ./... && go build ./cmd/shrt
-
-# Frontend
-cd frontend && npm run type-check && npm run lint && npm run build
-```
-
-> GitHub Actions CI is temporarily disabled (billing); restore the workflows from
-> git history once resolved. Until then these local checks are the gate.
-
-## Deployment options
-
-### Railway (simplest)
-
-Deploy the backend as a Railway service with a Railway Postgres and Upstash Redis add-on. Set all env vars in Railway's dashboard. Estimated cost: ~$5/month.
-
-### Hetzner VPS + Docker
-
-Run the backend in Docker on a Hetzner CX11 (~€4/month). Use Neon (free tier) for Postgres and Upstash (free tier) for Redis. Use Caddy as a reverse proxy for automatic HTTPS.
-
-### Frontend
-
-Deploy the Next.js frontend to Vercel (free tier). Set `NEXT_PUBLIC_API_URL` to
-your backend URL. The auth route handlers run server-side, so also set `API_URL`
-(it falls back to `NEXT_PUBLIC_API_URL`, then `http://localhost:8080`).
-
-### Production checklist
-
-- Run migrations against the production database: `migrate -path backend/db/migrations -database "$DATABASE_URL" up`
-- Set `ENV=production` (enables `Secure` cookies and stricter behaviour)
-- Set `BASE_URL` to your short domain and `FRONTEND_URL` to the deployed frontend origin (CORS allowlist)
-- Provide the JWT key pair via `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` (never commit `backend/keys/`)
-- Terminate HTTPS at the reverse proxy (Caddy/Vercel handle this automatically); the app expects to run behind a trusted proxy that sets `X-Forwarded-For`
-- Optionally set `SAFE_BROWSING_API_KEY` to enable Google Safe Browsing checks
+All configuration is via environment variables, documented in
+[`.env.example`](.env.example). The backend refuses to start if a required
+variable is missing. Never commit `.env` or `backend/keys/`.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup,
+the branch/PR workflow, required checks, and code style.
 
 ## License
 
-MIT
+[MIT](LICENSE) © Ahmed Sukhera
