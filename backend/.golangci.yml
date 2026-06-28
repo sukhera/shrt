@@ -1,0 +1,21 @@
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - gosimple
+    - unused
+    - gosec
+    - gofmt
+    - goimports
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/sukhera/shrt
+
+issues:
+  exclude-rules:
+    # Relax gosec in test files
+    - path: _test\.go
+      linters:
+        - gosec

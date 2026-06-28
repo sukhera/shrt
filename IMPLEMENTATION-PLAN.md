@@ -51,7 +51,7 @@ npx shadcn@latest init
 
 ### 1.2 Fonts
 
-**Geist Sans** for all body text and UI. **Geist Mono** for slugs, short URLs, and any code-like strings (copy buttons, slug display). Both are available via `next/font/google` in Next.js 14.
+**Geist Sans** for all body text and UI. **Geist Mono** for slugs, short URLs, and any code-like strings (copy buttons, slug display). Both ship via the `geist` package (`geist/font/sans`, `geist/font/mono`).
 
 ```ts
 import { GeistSans } from 'geist/font/sans'
@@ -162,7 +162,7 @@ shrt/                          # github.com/sukhera/shrt
 │   ├── sqlc.yaml
 │   ├── go.mod                 # module: github.com/sukhera/shrt/backend
 │   └── go.sum
-├── frontend/                  # Next.js 14 app
+├── frontend/                  # Next.js app (App Router)
 │   ├── app/
 │   │   ├── (auth)/
 │   │   │   ├── login/
@@ -592,7 +592,7 @@ Each agent reads this section for its role, then reads the relevant milestone(s)
 
 You are setting up the `shrt` project skeleton. Read [[#2. Project Structure]] for the exact folder layout, [[#3. Conventions]] for the Makefile and env var conventions, and [[#1. Design System]] to initialize the Next.js frontend correctly. Your goal is an empty but correctly structured project that builds and runs. Do not implement any business logic.
 
-**Tech stack:** Go 1.22+, `github.com/go-chi/chi/v5`, `github.com/golang-migrate/migrate/v4`, Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui (New York + Zinc), Geist font, Docker Compose.
+**Tech stack:** Go 1.25+, `github.com/go-chi/chi/v5`, `github.com/golang-migrate/migrate/v4`, Next.js (latest stable, App Router), TypeScript, Tailwind CSS, shadcn/ui (New York + Zinc), Geist font, Docker Compose.
 
 **Deliver:** Passing GitHub Actions CI on both backend and frontend; `make docker-up && make migrate-up && make dev` runs without errors; `npm run dev` starts without errors.
 
@@ -602,7 +602,9 @@ You are setting up the `shrt` project skeleton. Read [[#2. Project Structure]] f
 
 You are building the Go API and redirect server for `shrt`. Read [[#3. Conventions]] for package structure rules, [[#4. API Contract]] for the exact endpoint shapes you must implement, and your assigned milestone(s) for the ordered task list. Do not deviate from the API contract — the frontend is built against it.
 
-**Tech stack:** Go 1.22+, `go-chi/chi/v5` (router), `go-redis/redis/v9` (Redis), `jackc/pgx/v5` (Postgres driver), `sqlc-dev/sqlc` (query generation), `golang-migrate/migrate/v4` (migrations), `golang-jwt/jwt/v5` (JWT RS256), `golang.org/x/crypto/bcrypt` (password hashing).
+**Tech stack:** Go 1.25+, `github.com/go-chi/chi/v5` (router), `github.com/redis/go-redis/v9` (Redis), `github.com/jackc/pgx/v5` (Postgres driver), `sqlc-dev/sqlc` (query generation), `github.com/golang-migrate/migrate/v4` (migrations), `github.com/golang-jwt/jwt/v5` (JWT RS256), `golang.org/x/crypto/bcrypt` (password hashing).
+
+Pin the latest stable release of each module when first imported in M1 (as of this writing: chi v5.3.0, pgx v5.10.0, go-redis v9.21.0, golang-jwt v5.3.1, golang-migrate v4.19.1, go-playground/validator v10.30.3). Same majors as listed above — take the newest patch/minor.
 
 **Rules:**
 - No service layer — all business logic lives in `store/`; handlers only parse and respond
@@ -617,7 +619,7 @@ You are building the Go API and redirect server for `shrt`. Read [[#3. Conventio
 
 You are building the Next.js frontend for `shrt`. Read [[#1. Design System]] carefully — design decisions are locked and must be followed exactly. Read [[#4. API Contract]] to understand the backend you're integrating with. Read your assigned milestone for the ordered task list.
 
-**Tech stack:** Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui (New York + Zinc), Geist Sans + Geist Mono, Lucide React, Sonner (toasts), next-themes (dark mode), Playwright (E2E, added in M5).
+**Tech stack:** Next.js (latest stable, App Router), TypeScript, Tailwind CSS, shadcn/ui (New York + Zinc), Geist Sans + Geist Mono, Lucide React, Sonner (toasts), next-themes (dark mode), Playwright (E2E, added in M5).
 
 **Rules:**
 - Server Components by default; `"use client"` only when necessary

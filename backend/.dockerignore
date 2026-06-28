@@ -1,0 +1,6 @@
+keys/
+tmp/
+bin/
+*_test.go
+.air.toml
+.golangci.yml

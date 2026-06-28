@@ -18,7 +18,7 @@
 ```
 shrt/
 ├── backend/        # Go API + redirect server (single binary)
-├── frontend/       # Next.js 14 App Router
+├── frontend/       # Next.js App Router
 ├── docker-compose.yml
 ├── Makefile
 ├── .env.example
@@ -51,19 +51,19 @@ Copy `.env.example` to `.env` and fill in values before running. The app panics 
 
 | Layer | Tech |
 |-------|------|
-| Backend | Go 1.22+, chi router, sqlc, pgx/v5, go-redis/v9 |
+| Backend | Go 1.25+, chi router, sqlc, pgx/v5, go-redis/v9 |
 | Database | PostgreSQL 15+ |
 | Cache | Redis 7+ / Upstash |
-| Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui |
+| Frontend | Next.js (latest stable), TypeScript, Tailwind CSS, shadcn/ui |
 | Auth | JWT RS256 (access token 1h, refresh token 30d) |
 | CI | GitHub Actions |
 
 ## Git workflow
 
-- `main` — always deployable; direct pushes blocked; requires CI pass
+- `main` — always deployable; direct pushes blocked
 - `dev` — integration branch; PRs merge here first
 - Feature branches: `feat/slug-generation`, `fix/cache-invalidation`
-- Every PR must pass CI (lint + test + build) before merge
+- Before opening a PR, run the lint/test/build checks locally (see the CI sections in `backend/CLAUDE.md` and `frontend/CLAUDE.md`)
 
 Commit messages follow Conventional Commits:
 ```
@@ -75,8 +75,13 @@ test(links): integration test for expired link 410 response
 
 ## CI
 
-- `backend-ci.yml` — golangci-lint, go test ./..., go build
-- `frontend-ci.yml` — tsc --noEmit, next lint, next build
+GitHub Actions CI is temporarily removed (the repo's Actions are blocked by a
+billing issue). The workflows are recoverable from git history and should be
+restored once billing is resolved. Until then, run the checks locally before
+each PR:
+
+- Backend — `golangci-lint run ./...`, `go test -race ./...`, `go build ./cmd/shrt`
+- Frontend — `tsc --noEmit`, `eslint .`, `next build`
 
 Both must pass before any PR is merged.
 
