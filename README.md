@@ -113,8 +113,20 @@ shrt/
 
 Redirects use a Redis cache-aside: a slug lookup hits Redis first and falls back
 to Postgres on a miss, repopulating the cache. Cache failures never block a
-redirect. See [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md) for the full
-design and the API contract.
+redirect. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for diagrams and the
+full design.
+
+## Documentation
+
+| Doc | Contents |
+|-----|----------|
+| [docs/API.md](docs/API.md) | REST API reference — endpoints, examples, error codes, rate limits |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, request flows, and data model (with diagrams) |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local workflow — make targets, migrations, sqlc, testing |
+| [openapi.yaml](openapi.yaml) | Machine-readable OpenAPI 3.1 spec |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution workflow and code style |
+
+The full documentation index lives in [docs/](docs/README.md).
 
 ## Testing
 
