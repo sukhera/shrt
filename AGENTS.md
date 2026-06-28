@@ -6,7 +6,7 @@ Read this file first, then read `IMPLEMENTATION-PLAN.md` for the full milestone 
 
 `shrt` is an open-source, self-hostable URL shortener. MIT licensed.
 
-- **Backend:** Go 1.22+, chi router, sqlc, pgx/v5, go-redis/v9, JWT RS256
+- **Backend:** Go 1.25+, chi router, sqlc, pgx/v5, go-redis/v9, JWT RS256
 - **Frontend:** Next.js (latest stable), TypeScript, Tailwind, shadcn/ui (New York + Zinc)
 - **Database:** PostgreSQL 15
 - **Cache:** Redis 7 / Upstash

@@ -9,7 +9,7 @@ A clean, self-hostable URL shortener. MIT licensed.
 
 | Layer | Tech |
 |-------|------|
-| Backend | Go 1.22+, chi, sqlc, pgx/v5, go-redis/v9 |
+| Backend | Go 1.25+, chi, sqlc, pgx/v5, go-redis/v9 |
 | Database | PostgreSQL 15 |
 | Cache | Redis 7 / Upstash |
 | Frontend | Next.js (latest stable), TypeScript, Tailwind, shadcn/ui |
@@ -27,7 +27,7 @@ A clean, self-hostable URL shortener. MIT licensed.
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.25+
 - Node 20+
 - Docker (for Postgres + Redis)
 

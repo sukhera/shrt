@@ -51,7 +51,7 @@ Copy `.env.example` to `.env` and fill in values before running. The app panics 
 
 | Layer | Tech |
 |-------|------|
-| Backend | Go 1.22+, chi router, sqlc, pgx/v5, go-redis/v9 |
+| Backend | Go 1.25+, chi router, sqlc, pgx/v5, go-redis/v9 |
 | Database | PostgreSQL 15+ |
 | Cache | Redis 7+ / Upstash |
 | Frontend | Next.js (latest stable), TypeScript, Tailwind CSS, shadcn/ui |
