@@ -2,6 +2,7 @@
 backend/keys/
 backend/tmp/
 backend/bin/
+backend/shrt
 
 # Frontend
 frontend/.next/
