@@ -6,10 +6,13 @@ package store
 
 import (
 	"context"
+	"crypto/rsa"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
@@ -25,6 +28,9 @@ type Store struct {
 	rdb     *redis.Client
 	queries *db.Queries
 	http    *http.Client
+
+	jwtPrivate *rsa.PrivateKey
+	jwtPublic  *rsa.PublicKey
 }
 
 // New connects to Postgres and Redis and returns a ready Store. The caller is
@@ -51,13 +57,45 @@ func New(ctx context.Context, cfg *config.Config) (*Store, error) {
 		return nil, fmt.Errorf("ping redis: %w", err)
 	}
 
+	priv, pub, err := loadRSAKeys(cfg.JWTPrivateKeyPath, cfg.JWTPublicKeyPath)
+	if err != nil {
+		pool.Close()
+		_ = rdb.Close()
+		return nil, err
+	}
+
 	return &Store{
-		cfg:     cfg,
-		pool:    pool,
-		rdb:     rdb,
-		queries: db.New(pool),
-		http:    &http.Client{Timeout: 5 * time.Second},
+		cfg:        cfg,
+		pool:       pool,
+		rdb:        rdb,
+		queries:    db.New(pool),
+		http:       &http.Client{Timeout: 5 * time.Second},
+		jwtPrivate: priv,
+		jwtPublic:  pub,
 	}, nil
+}
+
+// loadRSAKeys reads and parses the PEM-encoded RS256 key pair used to sign and
+// verify access tokens.
+func loadRSAKeys(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	privPEM, err := os.ReadFile(privatePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read jwt private key: %w", err)
+	}
+	priv, err := jwt.ParseRSAPrivateKeyFromPEM(privPEM)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse jwt private key: %w", err)
+	}
+
+	pubPEM, err := os.ReadFile(publicPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read jwt public key: %w", err)
+	}
+	pub, err := jwt.ParseRSAPublicKeyFromPEM(pubPEM)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse jwt public key: %w", err)
+	}
+	return priv, pub, nil
 }
 
 // Close releases the database and Redis connections.

@@ -27,4 +27,17 @@ var (
 	// ErrForbidden is returned when a caller is authenticated but does not own
 	// the targeted resource.
 	ErrForbidden = errors.New("store: forbidden")
+
+	// ErrEmailTaken is returned when registering with an email that already
+	// exists.
+	ErrEmailTaken = errors.New("store: email already registered")
+
+	// ErrInvalidCredentials is returned when an email/password pair does not
+	// match. It is intentionally vague (same error for unknown email and wrong
+	// password) to avoid leaking which accounts exist.
+	ErrInvalidCredentials = errors.New("store: invalid credentials")
+
+	// ErrInvalidToken is returned when a JWT or refresh token is missing,
+	// malformed, expired, revoked, or otherwise fails validation.
+	ErrInvalidToken = errors.New("store: invalid token")
 )

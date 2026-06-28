@@ -55,6 +55,12 @@ func respondStoreError(w http.ResponseWriter, err error) {
 		respondError(w, http.StatusUnprocessableEntity, "UNSAFE_URL", "That URL was flagged as unsafe.")
 	case errors.Is(err, store.ErrForbidden):
 		respondError(w, http.StatusForbidden, "FORBIDDEN", "You do not have access to that link.")
+	case errors.Is(err, store.ErrEmailTaken):
+		respondError(w, http.StatusConflict, "EMAIL_TAKEN", "That email is already registered.")
+	case errors.Is(err, store.ErrInvalidCredentials):
+		respondError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Incorrect email or password.")
+	case errors.Is(err, store.ErrInvalidToken):
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Your session is invalid or has expired.")
 	default:
 		slog.Error("unhandled store error", "err", err)
 		respondError(w, http.StatusInternalServerError, "INTERNAL", "Something went wrong. Please try again.")

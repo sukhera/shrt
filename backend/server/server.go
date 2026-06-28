@@ -39,15 +39,27 @@ func New(cfg *config.Config, st *store.Store) *Server {
 
 	r.Get("/health", s.handleHealth)
 
-	// API routes. Auth middleware is added in M3; for now POST /links is
-	// anonymous-capable and the rest read a user ID that is not yet populated.
 	r.Route("/api/v1", func(api chi.Router) {
+		api.Route("/auth", func(auth chi.Router) {
+			auth.Post("/register", s.handleRegister)
+			auth.Post("/login", s.handleLogin)
+			auth.Post("/refresh", s.handleRefresh)
+			auth.With(s.requireAuth).Post("/logout", s.handleLogout)
+		})
+
 		api.Route("/links", func(links chi.Router) {
-			links.With(s.rateLimitCreate).Post("/", s.handleCreateLink)
-			links.Get("/", s.handleListLinks)
-			links.Get("/{slug}", s.handleGetLink)
-			links.Patch("/{slug}", s.handleUpdateLink)
-			links.Delete("/{slug}", s.handleDeleteLink)
+			// Creation is anonymous-capable: optionalAuth attaches the user when a
+			// valid token is present so the link is owned, otherwise proceeds anon.
+			links.With(s.optionalAuth, s.rateLimitCreate).Post("/", s.handleCreateLink)
+
+			// All other link operations require authentication.
+			links.Group(func(authed chi.Router) {
+				authed.Use(s.requireAuth)
+				authed.Get("/", s.handleListLinks)
+				authed.Get("/{slug}", s.handleGetLink)
+				authed.Patch("/{slug}", s.handleUpdateLink)
+				authed.Delete("/{slug}", s.handleDeleteLink)
+			})
 		})
 	})
 

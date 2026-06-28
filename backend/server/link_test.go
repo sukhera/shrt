@@ -13,11 +13,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// authed wraps a request so handlers see it as coming from the given user. It
-// stands in for the M3 auth middleware, which will populate the same context
-// value from a validated bearer token.
-func authed(req *http.Request, userID string) *http.Request {
-	return req.WithContext(withUserID(req.Context(), userID))
+// authed attaches a valid bearer access token for the given user so the request
+// passes the auth middleware exactly as a real client would. The user ID need not
+// correspond to a row in the users table — links carry no FK to users, so a
+// synthetic owner id is sufficient for link-ownership tests.
+func authed(t *testing.T, srv *Server, req *http.Request, userID string) *http.Request {
+	t.Helper()
+	token, err := srv.store.IssueAccessToken(userID, "user")
+	if err != nil {
+		t.Fatalf("issue access token: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	return req
 }
 
 // doJSON issues req against the server and decodes the JSON response into out
@@ -146,20 +153,20 @@ func TestListLinks_PaginationAndOwnership(t *testing.T) {
 	// Create three links for the user and one for someone else.
 	for i := 0; i < 3; i++ {
 		body := map[string]any{"url": fmt.Sprintf("https://example.com/%d", i)}
-		req := authed(httptest.NewRequest(http.MethodPost, "/api/v1/links", jsonBody(t, body)), user)
+		req := authed(t, srv, httptest.NewRequest(http.MethodPost, "/api/v1/links", jsonBody(t, body)), user)
 		var resp linkResponse
 		if code := doJSON(t, srv, req, &resp); code != http.StatusCreated {
 			t.Fatalf("seed create %d: status %d", i, code)
 		}
 		cleanupSlug(t, pool, resp.Slug)
 	}
-	otherReq := authed(httptest.NewRequest(http.MethodPost, "/api/v1/links", jsonBody(t, map[string]any{"url": "https://other.example.com"})), other)
+	otherReq := authed(t, srv, httptest.NewRequest(http.MethodPost, "/api/v1/links", jsonBody(t, map[string]any{"url": "https://other.example.com"})), other)
 	var otherResp linkResponse
 	doJSON(t, srv, otherReq, &otherResp)
 	cleanupSlug(t, pool, otherResp.Slug)
 
 	// List for the user — should see exactly their three links.
-	req := authed(httptest.NewRequest(http.MethodGet, "/api/v1/links?limit=2&page=1", nil), user)
+	req := authed(t, srv, httptest.NewRequest(http.MethodGet, "/api/v1/links?limit=2&page=1", nil), user)
 	var page listLinksResponse
 	if code := doJSON(t, srv, req, &page); code != http.StatusOK {
 		t.Fatalf("list: status %d", code)
@@ -183,7 +190,7 @@ func TestGetUpdateDeleteLink(t *testing.T) {
 	user := newUserID(t, pool)
 
 	// Create.
-	createReq := authed(httptest.NewRequest(http.MethodPost, "/api/v1/links", jsonBody(t, map[string]any{"url": "https://example.com/original"})), user)
+	createReq := authed(t, srv, httptest.NewRequest(http.MethodPost, "/api/v1/links", jsonBody(t, map[string]any{"url": "https://example.com/original"})), user)
 	var created linkResponse
 	if code := doJSON(t, srv, createReq, &created); code != http.StatusCreated {
 		t.Fatalf("create: status %d", code)
@@ -191,7 +198,7 @@ func TestGetUpdateDeleteLink(t *testing.T) {
 	cleanupSlug(t, pool, created.Slug)
 
 	// Get.
-	getReq := authed(httptest.NewRequest(http.MethodGet, "/api/v1/links/"+created.Slug, nil), user)
+	getReq := authed(t, srv, httptest.NewRequest(http.MethodGet, "/api/v1/links/"+created.Slug, nil), user)
 	var got linkResponse
 	if code := doJSON(t, srv, getReq, &got); code != http.StatusOK {
 		t.Fatalf("get: status %d", code)
@@ -202,7 +209,7 @@ func TestGetUpdateDeleteLink(t *testing.T) {
 
 	// Update destination.
 	newURL := "https://example.com/updated"
-	patchReq := authed(httptest.NewRequest(http.MethodPatch, "/api/v1/links/"+created.Slug, jsonBody(t, map[string]any{"url": newURL})), user)
+	patchReq := authed(t, srv, httptest.NewRequest(http.MethodPatch, "/api/v1/links/"+created.Slug, jsonBody(t, map[string]any{"url": newURL})), user)
 	var updated linkResponse
 	if code := doJSON(t, srv, patchReq, &updated); code != http.StatusOK {
 		t.Fatalf("patch: status %d", code)
@@ -213,19 +220,19 @@ func TestGetUpdateDeleteLink(t *testing.T) {
 
 	// Another user cannot see or delete it.
 	stranger := newUserID(t, pool)
-	strangerGet := authed(httptest.NewRequest(http.MethodGet, "/api/v1/links/"+created.Slug, nil), stranger)
+	strangerGet := authed(t, srv, httptest.NewRequest(http.MethodGet, "/api/v1/links/"+created.Slug, nil), stranger)
 	if code := doJSON(t, srv, strangerGet, nil); code != http.StatusNotFound {
 		t.Errorf("stranger get: got %d, want 404", code)
 	}
 
 	// Delete.
-	delReq := authed(httptest.NewRequest(http.MethodDelete, "/api/v1/links/"+created.Slug, nil), user)
+	delReq := authed(t, srv, httptest.NewRequest(http.MethodDelete, "/api/v1/links/"+created.Slug, nil), user)
 	if code := doJSON(t, srv, delReq, nil); code != http.StatusNoContent {
 		t.Fatalf("delete: status %d", code)
 	}
 
 	// After delete it is gone.
-	getAfter := authed(httptest.NewRequest(http.MethodGet, "/api/v1/links/"+created.Slug, nil), user)
+	getAfter := authed(t, srv, httptest.NewRequest(http.MethodGet, "/api/v1/links/"+created.Slug, nil), user)
 	if code := doJSON(t, srv, getAfter, nil); code != http.StatusNotFound {
 		t.Errorf("get after delete: got %d, want 404", code)
 	}
@@ -236,7 +243,7 @@ func TestUpdateLink_ClearExpiry(t *testing.T) {
 	user := newUserID(t, pool)
 
 	expiry := time.Now().Add(48 * time.Hour).UTC().Truncate(time.Second)
-	createReq := authed(httptest.NewRequest(http.MethodPost, "/api/v1/links", jsonBody(t, map[string]any{
+	createReq := authed(t, srv, httptest.NewRequest(http.MethodPost, "/api/v1/links", jsonBody(t, map[string]any{
 		"url":        "https://example.com",
 		"expires_at": expiry,
 	})), user)
@@ -250,7 +257,7 @@ func TestUpdateLink_ClearExpiry(t *testing.T) {
 	}
 
 	// Clearing expiry: explicit null.
-	patchReq := authed(httptest.NewRequest(http.MethodPatch, "/api/v1/links/"+created.Slug, bytes.NewReader([]byte(`{"expires_at":null}`))), user)
+	patchReq := authed(t, srv, httptest.NewRequest(http.MethodPatch, "/api/v1/links/"+created.Slug, bytes.NewReader([]byte(`{"expires_at":null}`))), user)
 	var updated linkResponse
 	if code := doJSON(t, srv, patchReq, &updated); code != http.StatusOK {
 		t.Fatalf("patch: status %d", code)

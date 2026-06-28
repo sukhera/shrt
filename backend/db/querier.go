@@ -15,6 +15,12 @@ type Querier interface {
 	// list query so pagination totals stay consistent.
 	CountLinksByUserID(ctx context.Context, arg CountLinksByUserIDParams) (int64, error)
 	CreateLink(ctx context.Context, arg CreateLinkParams) (CreateLinkRow, error)
+	// Stores a refresh token by its SHA-256 hash (never the plaintext token).
+	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
+	// Inserts a new user. The caller hashes the password before calling.
+	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	// Housekeeping: removes tokens past their expiry. Intended for a periodic job.
+	DeleteExpiredTokens(ctx context.Context) error
 	// Active (non-deleted) link by slug. Used by the redirect hot path.
 	GetLinkBySlug(ctx context.Context, slug string) (GetLinkBySlugRow, error)
 	// A user's single active link by slug. Used for detail, update, and delete so
@@ -26,6 +32,15 @@ type Querier interface {
 	// without dynamic string building: sort_expires picks expires_at over created_at,
 	// and sort_asc picks ascending over descending.
 	GetLinksByUserID(ctx context.Context, arg GetLinksByUserIDParams) ([]GetLinksByUserIDRow, error)
+	// Looks up a refresh token by its hash. The caller checks expiry and revocation.
+	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
+	// Fetches a user (including password_hash) by email for login.
+	GetUserByEmail(ctx context.Context, email string) (User, error)
+	// Fetches a user by id. Used after refresh-token validation to issue a new
+	// access token with the current role.
+	GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error)
+	// Marks a refresh token revoked (idempotent: only sets revoked_at if still active).
+	RevokeRefreshToken(ctx context.Context, tokenHash string) error
 	// Reports whether an active link already uses this slug. Used by slug generation
 	// (collision retry) and custom-alias validation.
 	SlugExists(ctx context.Context, slug string) (bool, error)

@@ -2,9 +2,15 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,6 +58,10 @@ func newTestServer(t *testing.T) (*Server, *pgxpool.Pool) {
 		SlugLength:          7,
 		RateLimitAnon:       1000, // generous by default; rate-limit tests lower it
 		RateLimitUser:       1000,
+		JWTPrivateKeyPath:   testKeyPath(t, "private.pem"),
+		JWTPublicKeyPath:    testKeyPath(t, "public.pem"),
+		JWTAccessTTL:        time.Hour,
+		JWTRefreshTTL:       720 * time.Hour,
 	}
 
 	st, err := store.New(ctx, cfg)
@@ -65,6 +75,42 @@ func newTestServer(t *testing.T) (*Server, *pgxpool.Pool) {
 	flushRedis(t, redisURL)
 
 	return New(cfg, st), pool
+}
+
+// testKeyDir generates an ephemeral RS256 key pair once per test binary and
+// returns the directory holding private.pem/public.pem. Tests use generated keys
+// rather than the gitignored backend/keys/ so they run in a clean checkout / CI.
+var testKeyDir = sync.OnceValue(func() string {
+	dir, err := os.MkdirTemp("", "shrt-test-keys-")
+	if err != nil {
+		panic("create test key dir: " + err.Error())
+	}
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		panic("generate test rsa key: " + err.Error())
+	}
+	privPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(priv),
+	})
+	pubDER, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	if err != nil {
+		panic("marshal test public key: " + err.Error())
+	}
+	pubPEM := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubDER})
+	if err := os.WriteFile(filepath.Join(dir, "private.pem"), privPEM, 0o600); err != nil {
+		panic("write test private key: " + err.Error())
+	}
+	if err := os.WriteFile(filepath.Join(dir, "public.pem"), pubPEM, 0o644); err != nil {
+		panic("write test public key: " + err.Error())
+	}
+	return dir
+})
+
+// testKeyPath returns the path to a generated PEM key file by name.
+func testKeyPath(t *testing.T, name string) string {
+	t.Helper()
+	return filepath.Join(testKeyDir(), name)
 }
 
 // ensureSchema creates the links table if it is absent so the test can run
@@ -83,7 +129,25 @@ func ensureSchema(t *testing.T, pool *pgxpool.Pool) {
 			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
-		CREATE UNIQUE INDEX IF NOT EXISTS idx_links_slug_active ON links (slug) WHERE deleted_at IS NULL;`)
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_links_slug_active ON links (slug) WHERE deleted_at IS NULL;
+
+		CREATE TABLE IF NOT EXISTS users (
+			id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+			email         TEXT        NOT NULL UNIQUE,
+			password_hash TEXT        NOT NULL,
+			role          TEXT        NOT NULL DEFAULT 'user',
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+
+		CREATE TABLE IF NOT EXISTS refresh_tokens (
+			id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			token_hash TEXT        NOT NULL UNIQUE,
+			expires_at TIMESTAMPTZ NOT NULL,
+			revoked_at TIMESTAMPTZ,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`)
 	if err != nil {
 		t.Fatalf("ensure schema: %v", err)
 	}
