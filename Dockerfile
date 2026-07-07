@@ -42,12 +42,17 @@ COPY --from=frontend-build /src/.next/static /app/.next/static
 # Caddyfile: route between Go backend and Next.js
 RUN cat > /etc/caddy/Caddyfile <<'EOF'
 :80 {
-    # API → Go backend
-    handle /api/* {
+    # Go backend API (v1 only)
+    handle /api/v1/* {
         reverse_proxy localhost:8080
     }
     handle /health {
         reverse_proxy localhost:8080
+    }
+
+    # Next.js API routes (auth BFF)
+    handle /api/* {
+        reverse_proxy localhost:3000
     }
 
     # Next.js static assets
