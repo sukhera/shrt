@@ -36,7 +36,6 @@ COPY --from=backend-build /go/bin/migrate /usr/local/bin/migrate
 COPY backend/db/migrations /migrations
 
 # Next.js standalone output
-COPY --from=frontend-build /src/public /app/public
 COPY --from=frontend-build /src/.next/standalone /app
 COPY --from=frontend-build /src/.next/static /app/.next/static
 
