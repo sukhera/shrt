@@ -30,7 +30,7 @@ export function CopyButton({ value, label = "Copy" }: CopyButtonProps) {
   return (
     <Button variant="ghost" size="icon" aria-label={label} onClick={copy}>
       {copied ? (
-        <Check className="h-4 w-4 text-green-600" />
+        <Check className="h-4 w-4 text-ok" />
       ) : (
         <Copy className="h-4 w-4" />
       )}
