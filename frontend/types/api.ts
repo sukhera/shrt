@@ -11,6 +11,8 @@ export interface Link {
   expires_at: string | null
   created_at: string
   updated_at: string
+  /** Total click count — present once the click rollup backend (R5) is deployed. */
+  click_count?: number
 }
 
 /** Pagination metadata returned by GET /links. */
