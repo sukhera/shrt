@@ -8,6 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ClicksDaily struct {
+	LinkID pgtype.UUID `json:"link_id"`
+	Day    pgtype.Date `json:"day"`
+	Count  int32       `json:"count"`
+}
+
 type Link struct {
 	ID          pgtype.UUID        `json:"id"`
 	UserID      pgtype.UUID        `json:"user_id"`

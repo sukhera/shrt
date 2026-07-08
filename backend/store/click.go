@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
-
 	"github.com/sukhera/shrt/backend/db"
 )
 
@@ -25,14 +23,27 @@ type LinkStats struct {
 }
 
 // RecordClick fires an async upsert to increment today's click count for a
-// link. It never blocks the caller — errors are logged and dropped. The linkID
-// is the UUID string from the redirect-path Link struct.
+// link. It never blocks the caller — errors (including a malformed or empty
+// linkID, which can occur when a Redis-cached Link predates this field) are
+// logged and dropped, and a panic inside the goroutine is recovered so it can
+// never crash the process.
 func (s *Store) RecordClick(ctx context.Context, linkID string) {
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Warn("click upsert panicked", "link_id", linkID, "recover", r)
+			}
+		}()
+
+		uid, err := toUUID(&linkID)
+		if err != nil || !uid.Valid {
+			slog.Warn("click upsert skipped: invalid link id", "link_id", linkID)
+			return
+		}
+
 		bgCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
-		uid := mustUUID(linkID)
 		if err := s.queries.UpsertClickDaily(bgCtx, uid); err != nil {
 			slog.Warn("click upsert failed", "link_id", linkID, "err", err)
 		}
@@ -42,7 +53,10 @@ func (s *Store) RecordClick(ctx context.Context, linkID string) {
 // GetLinkStats returns 30-day click data for a link. Zero-days are filled in
 // so the sparkline always has 30 data points.
 func (s *Store) GetLinkStats(ctx context.Context, linkID string) (*LinkStats, error) {
-	uid := mustUUID(linkID)
+	uid, err := toUUID(&linkID)
+	if err != nil {
+		return nil, err
+	}
 
 	total, err := s.queries.GetTotalClicks(ctx, uid)
 	if err != nil {
@@ -82,7 +96,9 @@ func (s *Store) GetClickCountsByUser(ctx context.Context, userID string) (map[st
 
 	counts := make(map[string]int64, len(rows))
 	for _, r := range rows {
-		counts[uuidString(r.LinkID)] = r.Total
+		if id := uuidToStringPtr(r.LinkID); id != nil {
+			counts[*id] = r.Total
+		}
 	}
 	return counts, nil
 }
@@ -96,7 +112,10 @@ func fillZeroDays(rows []db.GetClickStatsRow, days int) []ClickDay {
 	// Index rows by day for O(1) lookup
 	byDay := make(map[string]int32, len(rows))
 	for _, r := range rows {
-		key := r.Day.Format("2006-01-02")
+		if !r.Day.Valid {
+			continue
+		}
+		key := r.Day.Time.Format("2006-01-02")
 		byDay[key] = r.Count
 	}
 
@@ -109,10 +128,3 @@ func fillZeroDays(rows []db.GetClickStatsRow, days int) []ClickDay {
 	return result
 }
 
-// uuidString extracts the string from a pgtype.UUID. Panics if invalid.
-func uuidString(u pgtype.UUID) string {
-	if !u.Valid {
-		return ""
-	}
-	return u.String()
-}

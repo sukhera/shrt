@@ -1,7 +1,9 @@
 -- name: UpsertClickDaily :exec
 -- Idempotent daily click increment. Called async on each redirect.
+-- Bucketed by UTC calendar day (not the session/server timezone) so it always
+-- agrees with the Go-side UTC day math in fillZeroDays.
 INSERT INTO clicks_daily (link_id, day, count)
-VALUES ($1, CURRENT_DATE, 1)
+VALUES ($1, (now() AT TIME ZONE 'utc')::date, 1)
 ON CONFLICT (link_id, day) DO UPDATE SET count = clicks_daily.count + 1;
 
 -- name: GetClickStats :many
@@ -10,7 +12,7 @@ ON CONFLICT (link_id, day) DO UPDATE SET count = clicks_daily.count + 1;
 SELECT day, count
 FROM clicks_daily
 WHERE link_id = $1
-  AND day >= CURRENT_DATE - sqlc.arg('days_back')::int
+  AND day >= (now() AT TIME ZONE 'utc')::date - sqlc.arg('days_back')::int
 ORDER BY day ASC;
 
 -- name: GetTotalClicks :one

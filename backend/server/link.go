@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -103,8 +104,13 @@ func (s *Server) handleListLinks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch click counts in one query (no N+1).
-	clickCounts, _ := s.store.GetClickCountsByUser(r.Context(), userID)
+	// Fetch click counts in one query (no N+1). This is an enrichment, not the
+	// primary data — a failure here must not fail the whole list request.
+	clickCounts, err := s.store.GetClickCountsByUser(r.Context(), userID)
+	if err != nil {
+		slog.Warn("fetch click counts failed", "user_id", userID, "err", err)
+		clickCounts = nil
+	}
 
 	data := make([]linkResponse, len(links))
 	for i := range links {
