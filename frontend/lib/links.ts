@@ -3,11 +3,11 @@
 
 import type { Link } from "@/types/api"
 
-export type LinkStatus = "active" | "expires-soon" | "expired"
+export type LinkStatus = "active" | "expires-soon" | "expired" | "disabled"
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 
-/** Derives a display status from a link's expiry (design system § 1.6). */
+/** Derives a display status from a link's expiry (design system § 2.1). */
 export function linkStatus(link: Link, now: number = Date.now()): LinkStatus {
   if (!link.expires_at) return "active"
   const expiry = new Date(link.expires_at).getTime()
@@ -18,8 +18,9 @@ export function linkStatus(link: Link, now: number = Date.now()): LinkStatus {
 
 const STATUS_LABELS: Record<LinkStatus, string> = {
   active: "Active",
-  "expires-soon": "Expires soon",
+  "expires-soon": "Expiring",
   expired: "Expired",
+  disabled: "Disabled",
 }
 
 export function statusLabel(status: LinkStatus): string {
@@ -33,4 +34,41 @@ export function formatDate(iso: string): string {
     month: "short",
     day: "numeric",
   })
+}
+
+/** Formats an ISO timestamp as a relative string (e.g. "3d ago", "in 2h"). */
+export function relativeTime(iso: string, now: number = Date.now()): string {
+  const diff = new Date(iso).getTime() - now
+  const absDiff = Math.abs(diff)
+  const past = diff < 0
+
+  if (absDiff < 60_000) return "just now"
+
+  const minutes = Math.floor(absDiff / 60_000)
+  if (minutes < 60) {
+    const label = `${minutes}m`
+    return past ? `${label} ago` : `in ${label}`
+  }
+
+  const hours = Math.floor(absDiff / 3_600_000)
+  if (hours < 24) {
+    const label = `${hours}h`
+    return past ? `${label} ago` : `in ${label}`
+  }
+
+  const days = Math.floor(absDiff / 86_400_000)
+  if (days < 30) {
+    const label = `${days}d`
+    return past ? `${label} ago` : `in ${label}`
+  }
+
+  const months = Math.floor(days / 30)
+  if (months < 12) {
+    const label = `${months}mo`
+    return past ? `${label} ago` : `in ${label}`
+  }
+
+  const years = Math.floor(days / 365)
+  const label = `${years}y`
+  return past ? `${label} ago` : `in ${label}`
 }
