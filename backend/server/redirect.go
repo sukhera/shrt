@@ -34,6 +34,9 @@ func (s *Server) handleRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Record the click asynchronously — never blocks the redirect.
+	s.store.RecordClick(r.Context(), link.ID)
+
 	http.Redirect(w, r, link.OriginalURL, s.redirectStatus(link))
 }
 

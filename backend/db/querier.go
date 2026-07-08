@@ -21,6 +21,9 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	// Housekeeping: removes tokens past their expiry. Intended for a periodic job.
 	DeleteExpiredTokens(ctx context.Context) error
+	// Last N days of click data for a link, ordered chronologically.
+	// Returns rows only for days with clicks; the caller fills zero-days.
+	GetClickStats(ctx context.Context, arg GetClickStatsParams) ([]GetClickStatsRow, error)
 	// Active (non-deleted) link by slug. Used by the redirect hot path.
 	GetLinkBySlug(ctx context.Context, slug string) (GetLinkBySlugRow, error)
 	// A user's single active link by slug. Used for detail, update, and delete so
@@ -34,6 +37,11 @@ type Querier interface {
 	GetLinksByUserID(ctx context.Context, arg GetLinksByUserIDParams) ([]GetLinksByUserIDRow, error)
 	// Looks up a refresh token by its hash. The caller checks expiry and revocation.
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
+	// Lifetime click count for a single link.
+	GetTotalClicks(ctx context.Context, linkID pgtype.UUID) (int64, error)
+	// Total clicks per link for a user's links. Used to populate click_count
+	// in the dashboard list without N+1 queries.
+	GetTotalClicksByUser(ctx context.Context, userID pgtype.UUID) ([]GetTotalClicksByUserRow, error)
 	// Fetches a user (including password_hash) by email for login.
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	// Fetches a user by id. Used after refresh-token validation to issue a new
@@ -48,6 +56,10 @@ type Querier interface {
 	// Updates mutable fields of an active link. NULL arguments leave a field unchanged
 	// (handled via COALESCE) except expires_at, which is set verbatim so it can be cleared.
 	UpdateLink(ctx context.Context, arg UpdateLinkParams) (UpdateLinkRow, error)
+	// Idempotent daily click increment. Called async on each redirect.
+	// Bucketed by UTC calendar day (not the session/server timezone) so it always
+	// agrees with the Go-side UTC day math in fillZeroDays.
+	UpsertClickDaily(ctx context.Context, linkID pgtype.UUID) error
 }
 
 var _ Querier = (*Queries)(nil)

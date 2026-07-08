@@ -19,10 +19,12 @@ export function Nav() {
   }
 
   return (
-    <header className="border-b">
+    <header className="border-b border-[var(--border)]">
       <nav className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-        <Link href="/" className="font-mono text-lg font-bold text-primary">
-          shrt
+        <Link href="/" className="font-mono text-lg font-bold tracking-tight">
+          <span className="text-foreground">s</span>
+          <span className="text-primary">/</span>
+          <span className="text-foreground">hrt</span>
         </Link>
 
         <div className="flex items-center gap-2">

@@ -57,6 +57,7 @@ func New(cfg *config.Config, st *store.Store) *Server {
 				authed.Use(s.requireAuth)
 				authed.Get("/", s.handleListLinks)
 				authed.Get("/{slug}", s.handleGetLink)
+				authed.Get("/{slug}/stats", s.handleGetLinkStats)
 				authed.Patch("/{slug}", s.handleUpdateLink)
 				authed.Delete("/{slug}", s.handleDeleteLink)
 			})

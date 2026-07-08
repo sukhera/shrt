@@ -17,6 +17,7 @@ const cacheTTLNoExpiry = 24 * time.Hour
 
 // Link is the store-level view of a shortened link used by the redirect path.
 type Link struct {
+	ID          string     `json:"id"`
 	Slug        string     `json:"slug"`
 	OriginalURL string     `json:"original_url"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
@@ -82,7 +83,7 @@ func (s *Store) loadSlugFromDB(ctx context.Context, slug string) (*Link, error) 
 		return nil, fmt.Errorf("get link by slug: %w", err)
 	}
 
-	link := &Link{Slug: row.Slug, OriginalURL: row.OriginalUrl}
+	link := &Link{ID: row.ID.String(), Slug: row.Slug, OriginalURL: row.OriginalUrl}
 	if row.ExpiresAt.Valid {
 		t := row.ExpiresAt.Time
 		link.ExpiresAt = &t

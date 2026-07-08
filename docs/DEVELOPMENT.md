@@ -143,6 +143,31 @@ npm run e2e:ui                    # interactive inspector
 They cover: anonymous shorten → copy → redirect; register → login → create →
 edit → delete; and the expired-link 410 path.
 
+### Screenshots & local Chromium on a low-RAM machine
+
+The README screenshots are captured against a **production build** (`next build`
+then `next start`), not the dev server — `next dev` shows a dev-mode badge, and a
+production build renders exactly what ships.
+
+There's a second, non-obvious reason to prefer `next start` for anything that
+launches a real browser locally (screenshots or Playwright): **`next dev` uses
+Turbopack, which stays resident live-compiling and churns allocations.** On a
+memory-constrained machine (e.g. 8 GB) that allocation churn competes with
+Chromium's launch spike for the OS's memory reclaim, and the box can thrash into
+swap and freeze — even though it looks like there's free RAM (macOS keeps
+`Pages free` near zero by design; check `memory_pressure`, not free pages).
+`next start` serves static compiled output quietly, so the Chromium spike has
+room. If you must drive a browser locally, do it against a `next start` build,
+or point the E2E suite at a deployed target via `E2E_FRONTEND_URL` /
+`E2E_BACKEND_URL`.
+
+```bash
+cd frontend
+npm run build
+npm run start             # production server on :3000 (no dev badge, quiet)
+# then run screenshots / Playwright against http://localhost:3000
+```
+
 ## Before opening a PR
 
 Run the full gate locally (GitHub Actions CI is temporarily disabled — see the

@@ -2,50 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * shrt — Portfolio Design System Tokens
+ * Part of the shared surface architecture (ping DESIGN.md §4–5).
+ * Hue: violet. Dark-first.
+ *
+ * Rules:
+ *   - No raw hex outside this file.
+ *   - Violet (--accent) = actions, links, focus rings only.
+ *   - Link status uses the semantic quartet (--ok/--warn/--bad/--off) + shape + label.
+ *   - Geist Mono for slugs, URLs, counts, dates (tabular-nums).
+ *   - Hairline borders, no default shadows.
+ */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 262 83% 58%;          /* violet-600 */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 262 83% 96%;           /* violet-50 */
-    --accent-foreground: 262 83% 58%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 262 83% 58%;
-    --radius: 0.5rem;
+    /* ── Surfaces ─────────────────────────────────── */
+    --bg: #F8F9FB;
+    --surface: #FFFFFF;
+    --surface-2: #F0F1F4;
+    --border: #E2E4E9;
+
+    /* ── Text ─────────────────────────────────────── */
+    --text: #12151A;
+    --text-dim: #5C6470;
+    --text-faint: #8B94A3;
+
+    /* ── Accent (violet) ──────────────────────────── */
+    --accent: #8B7CF6;
+    --accent-soft: rgba(139, 124, 246, 0.12);
+
+    /* ── Semantic status ──────────────────────────── */
+    --ok: #2DD4A7;
+    --warn: #F5B84B;
+    --bad: #F4564E;
+    --off: #5C6470;
+
+    /* ── Radius ───────────────────────────────────── */
+    --radius: 0.375rem;
+
+    /* ── shadcn compatibility layer ────────────────── */
+    --background: var(--bg);
+    --foreground: var(--text);
+    --card: var(--surface);
+    --card-foreground: var(--text);
+    --popover: var(--surface);
+    --popover-foreground: var(--text);
+    --primary: var(--accent);
+    --primary-foreground: #FFFFFF;
+    --secondary: var(--surface-2);
+    --secondary-foreground: var(--text);
+    --muted: var(--surface-2);
+    --muted-foreground: var(--text-dim);
+    --accent-ui: var(--accent-soft);
+    --accent-ui-foreground: var(--accent);
+    --destructive: var(--bad);
+    --destructive-foreground: #FFFFFF;
+    --border-ui: var(--border);
+    --input: var(--border);
+    --ring: var(--accent);
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 263 70% 65%;          /* violet-400 — lighter for dark mode */
-    --primary-foreground: 240 10% 3.9%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 263 70% 65%;
+    /* ── Surfaces ─────────────────────────────────── */
+    --bg: #0B0D10;
+    --surface: #12151A;
+    --surface-2: #1A1E25;
+    --border: #232830;
+
+    /* ── Text ─────────────────────────────────────── */
+    --text: #E6EAF0;
+    --text-dim: #8B94A3;
+    --text-faint: #5C6470;
+
+    /* ── Accent (violet — same across themes) ─────── */
+    --accent: #8B7CF6;
+    --accent-soft: rgba(139, 124, 246, 0.12);
+
+    /* ── Semantic status (same across themes) ─────── */
+    --ok: #2DD4A7;
+    --warn: #F5B84B;
+    --bad: #F4564E;
+    --off: #5C6470;
+
+    /* ── shadcn compatibility ─────────────────────── */
+    --primary-foreground: #0B0D10;
+    --secondary-foreground: var(--text);
+    --destructive-foreground: #FFFFFF;
   }
 }
 
@@ -55,5 +98,27 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ── Animations ──────────────────────────────────── */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.04);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
