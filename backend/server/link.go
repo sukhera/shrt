@@ -22,6 +22,7 @@ type linkResponse struct {
 	ExpiresAt   *time.Time `json:"expires_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
+	ClickCount  *int64     `json:"click_count,omitempty"`
 }
 
 // toLinkResponse adapts a store.LinkDetail into the API shape, building the full
@@ -102,9 +103,21 @@ func (s *Server) handleListLinks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch click counts in one query (no N+1).
+	clickCounts, _ := s.store.GetClickCountsByUser(r.Context(), userID)
+
 	data := make([]linkResponse, len(links))
 	for i := range links {
-		data[i] = s.toLinkResponse(&links[i])
+		lr := s.toLinkResponse(&links[i])
+		if clickCounts != nil {
+			if c, ok := clickCounts[links[i].ID]; ok {
+				lr.ClickCount = &c
+			} else {
+				zero := int64(0)
+				lr.ClickCount = &zero
+			}
+		}
+		data[i] = lr
 	}
 	respondJSON(w, http.StatusOK, listLinksResponse{
 		Data:       data,

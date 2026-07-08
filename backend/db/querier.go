@@ -15,6 +15,14 @@ type Querier interface {
 	// list query so pagination totals stay consistent.
 	CountLinksByUserID(ctx context.Context, arg CountLinksByUserIDParams) (int64, error)
 	CreateLink(ctx context.Context, arg CreateLinkParams) (CreateLinkRow, error)
+	// Last N days of click data for a link, ordered chronologically.
+	GetClickStats(ctx context.Context, arg GetClickStatsParams) ([]GetClickStatsRow, error)
+	// Lifetime click count for a single link.
+	GetTotalClicks(ctx context.Context, linkID pgtype.UUID) (int64, error)
+	// Total clicks per link for a user's links (avoids N+1).
+	GetTotalClicksByUser(ctx context.Context, userID pgtype.UUID) ([]GetTotalClicksByUserRow, error)
+	// Idempotent daily click increment, called async on each redirect.
+	UpsertClickDaily(ctx context.Context, linkID pgtype.UUID) error
 	// Stores a refresh token by its SHA-256 hash (never the plaintext token).
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	// Inserts a new user. The caller hashes the password before calling.
