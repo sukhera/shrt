@@ -3,7 +3,7 @@
 
 import type { Link } from "@/types/api"
 
-export type LinkStatus = "active" | "expires-soon" | "expired" | "disabled"
+export type LinkStatus = "active" | "expires-soon" | "expired"
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -20,7 +20,6 @@ const STATUS_LABELS: Record<LinkStatus, string> = {
   active: "Active",
   "expires-soon": "Expiring",
   expired: "Expired",
-  disabled: "Disabled",
 }
 
 export function statusLabel(status: LinkStatus): string {

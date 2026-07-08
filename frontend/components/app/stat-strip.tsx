@@ -9,13 +9,13 @@ interface StatStripProps {
 }
 
 // Dashboard stat strip — big mono numerals in the ping pattern.
-// Shows: Total links · Clicks 7d (placeholder until R5) · Top link.
+// Shows: Total links (account-wide) · Active + Top link (current page only,
+// since the backend has no account-wide equivalent yet — labelled as such so
+// the numbers don't imply more than they measure).
 export function StatStrip({ links, total }: StatStripProps) {
-  // Total clicks (sum click_count when available)
-  const totalClicks = links.reduce((sum, l) => sum + (l.click_count ?? 0), 0)
   const hasClicks = links.some((l) => l.click_count !== undefined)
 
-  // Top link by clicks
+  // Top link by clicks (current page only)
   const topLink = hasClicks
     ? links.reduce<Link | null>(
         (best, l) => (!best || (l.click_count ?? 0) > (best.click_count ?? 0) ? l : best),
@@ -23,19 +23,16 @@ export function StatStrip({ links, total }: StatStripProps) {
       )
     : null
 
-  // Active links count
+  // Active links count (current page only)
   const activeCount = links.filter((l) => linkStatus(l) === "active").length
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
       <StatCard label="Total links" value={total} />
-      <StatCard
-        label="Active"
-        value={activeCount}
-      />
+      <StatCard label="Active (page)" value={activeCount} />
       {hasClicks ? (
         <StatCard
-          label="Top link"
+          label="Top link (page)"
           value={topLink?.click_count ?? 0}
           suffix={topLink ? topLink.slug : undefined}
         />

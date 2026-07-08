@@ -4,13 +4,11 @@ import { statusLabel, type LinkStatus } from "@/lib/links"
 //   active      → filled dot    + --ok
 //   expires-soon→ triangle      + --warn
 //   expired     → filled square + --bad
-//   disabled    → ring (hollow) + --off
 
 const STATUS_CONFIG: Record<LinkStatus, { color: string; bg: string }> = {
   active: { color: "var(--ok)", bg: "var(--ok)" },
   "expires-soon": { color: "var(--warn)", bg: "var(--warn)" },
   expired: { color: "var(--bad)", bg: "var(--bad)" },
-  disabled: { color: "var(--off)", bg: "var(--off)" },
 }
 
 function StatusShape({ status }: { status: LinkStatus }) {
@@ -36,13 +34,6 @@ function StatusShape({ status }: { status: LinkStatus }) {
       return (
         <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
           <rect x="0.5" y="0.5" width="7" height="7" rx="1" fill={color} />
-        </svg>
-      )
-    case "disabled":
-      // Ring (hollow circle)
-      return (
-        <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
-          <circle cx="4" cy="4" r="3" fill="none" stroke={color} strokeWidth="1.5" />
         </svg>
       )
   }

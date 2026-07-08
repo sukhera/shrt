@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import NextLink from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 
 import { useLinks } from "@/hooks/use-links"
@@ -86,13 +87,19 @@ export function LinksTable() {
   }
 
   const total = data?.pagination.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const allRows = data?.data ?? []
 
-  // Client-side status filter (until backend supports it)
-  const rows = statusFilter === "all"
-    ? allRows
-    : allRows.filter((link) => linkStatus(link) === (statusFilter as LinkStatus))
+  // Client-side status filter (until backend supports it). Because this only
+  // filters the already-fetched page, pagination is scoped to the filtered
+  // rows on the current page rather than the server's unfiltered total —
+  // otherwise the footer counts and page math would contradict what's shown.
+  const isFiltered = statusFilter !== "all"
+  const rows = isFiltered
+    ? allRows.filter((link) => linkStatus(link) === (statusFilter as LinkStatus))
+    : allRows
+
+  const displayedTotal = isFiltered ? rows.length : total
+  const totalPages = isFiltered ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <div className="space-y-6">
@@ -182,7 +189,7 @@ export function LinksTable() {
                       <p className="mt-2 text-dim">No links yet.</p>
                       <p className="mt-1 text-sm text-faint">
                         Paste a URL on the{" "}
-                        <a href="/" className="text-primary hover:underline">home page</a>
+                        <NextLink href="/" className="text-primary hover:underline">home page</NextLink>
                         {" "}to create your first short link.
                       </p>
                     </div>
@@ -255,13 +262,14 @@ export function LinksTable() {
       {/* Pagination */}
       <div className="flex items-center justify-between text-sm text-dim">
         <span className="font-mono tabular-nums">
-          {total} link{total === 1 ? "" : "s"}
+          {displayedTotal} link{displayedTotal === 1 ? "" : "s"}
+          {isFiltered ? " on this page" : ""}
         </span>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            disabled={page <= 1}
+            disabled={isFiltered || page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
             Previous
@@ -272,7 +280,7 @@ export function LinksTable() {
           <Button
             variant="outline"
             size="sm"
-            disabled={page >= totalPages}
+            disabled={isFiltered || page >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           >
             Next
