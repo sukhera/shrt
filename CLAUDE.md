@@ -6,6 +6,10 @@
 
 **Repository:** https://github.com/sukhera/shrt
 
+## Agent skills
+
+`.claude/skills/` is vendored from the author's personal library (`~/claude-skills`) and applies stack-specific expertise (Go backend, React/Next.js frontend, database, security, testing, API design, product design) plus the `run` skill documenting the local launch path — including the freeze-safe way to drive a browser locally. Committed to the repo; improvements should flow back upstream to the library.
+
 ## Key documents — read these before writing any code
 
 - `IMPLEMENTATION-PLAN.md` — milestone breakdown, ordered task lists, agent briefs, API contract, design system
